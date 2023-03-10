@@ -5,14 +5,19 @@ import com.loneoaktech.components.coroutine.cache.TimeValidator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import org.junit.After
@@ -33,21 +38,25 @@ import java.util.concurrent.atomic.AtomicInteger
  * That lib apparently requires all coroutines to run with the same test dispatcher, so
  * not the same as running the fetcher on a different thread.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class AutonomousCacheMapTest {
 
-       data class Stuff( val id: Int, val payload: String )
+   data class Stuff( val id: Int, val payload: String )
 
-    private val testDispatcher = TestCoroutineDispatcher()
+    private val testDispatcher =  StandardTestDispatcher()
 
     private val fetchCounter = AtomicInteger()
     private val fetchCancelCounter = AtomicInteger()
     private val fetchErrorCounter = AtomicInteger()
     private val throwFetchError = AtomicBoolean()
+    private val isInSimulatedFetch = AtomicBoolean()
 
     private suspend fun fetchStuff( key: Int ): Stuff {
         return try {
             withContext( testDispatcher ){
+                isInSimulatedFetch.set(true)
                 delay(200)
+                isInSimulatedFetch.set(false)
                 if ( throwFetchError.getAndSet(false) ) {
                     println("fetcher throwing io exception")
                     fetchErrorCounter.incrementAndGet()
@@ -67,7 +76,7 @@ class AutonomousCacheMapTest {
     private val fetchScope = CoroutineScope(SupervisorJob()+testDispatcher)
 
     private val stuffCache = AutonomousCacheMap(
-            validator = TimeValidator( 500, 10 ){ testDispatcher.currentTime },
+            validator = TimeValidator( 500, 10 ){ testDispatcher.scheduler.currentTime },
             fetcher = ::fetchStuff,
             fetchingScope = fetchScope
     )
@@ -80,11 +89,11 @@ class AutonomousCacheMapTest {
     @After
     fun cleanUp() {
         Dispatchers.resetMain()
-        testDispatcher.cleanupTestCoroutines()
+//        testDispatcher.cleanupTestCoroutines()
     }
 
     @Test
-    fun simpleTest() = testDispatcher.runBlockingTest {
+    fun simpleTest() = runTest(testDispatcher) {
 
         val s1 = stuffCache.get(1)
         println("stuff 1 = $s1")
@@ -96,30 +105,30 @@ class AutonomousCacheMapTest {
     }
 
     @Test
-    fun multiJobTest() = testDispatcher.runBlockingTest {
+    fun multiJobTest() = runTest(testDispatcher) {
 
         var s1: Stuff? = null
         var s1a: Stuff? = null
 
-        val j1 = launch {
+        launch {
             s1 = stuffCache.get(1)
             assertEquals("Fetch counter should be 1", 1, fetchCounter.get() )
         }
 
         delay(10) // ensure j2 starts after j2
 
-        val j2 = launch {
+        launch {
             s1a = stuffCache.get(1)
             assertEquals("Fetch counter should not have incremented", 1, fetchCounter.get() )
         }
 
-        joinAll(j1,j2)
+        advanceUntilIdle()
         assertTrue( s1 === s1a )
-
     }
 
     @Test
-    fun cancelFirstJobTest() = testDispatcher.runBlockingTest {
+    fun cancelFirstJobTest() = runTest(testDispatcher) {
+
         var s1: Stuff? = null
         var s1a: Stuff? = null
 
@@ -136,6 +145,8 @@ class AutonomousCacheMapTest {
         }
 
         delay(10) // ensure both jobs are started and at mutex
+
+        assertTrue( isInSimulatedFetch.get() )
         j1.cancel()
 
         joinAll(j1,j2)
@@ -145,7 +156,8 @@ class AutonomousCacheMapTest {
     }
 
     @Test
-    fun ioErrorTest() = testDispatcher.runBlockingTest {
+    fun ioErrorTest() = runTest(testDispatcher) {
+
         var s1: Stuff? = null
         var e1: Exception? = null
 
@@ -178,7 +190,7 @@ class AutonomousCacheMapTest {
     }
 
     @Test
-    fun ioErrorMultiCallerTest() = testDispatcher.runBlockingTest {
+    fun ioErrorMultiCallerTest() = runTest(testDispatcher) {
 
         var s1: Stuff? = null
         var e1: Exception? = null
@@ -223,7 +235,7 @@ class AutonomousCacheMapTest {
     }
 
     @Test
-    fun clearTest() = testDispatcher.runBlockingTest {
+    fun clearTest() = runTest(testDispatcher) {
 
         val s1 = stuffCache.get(1)
         println("stuff 1 = $s1")

@@ -1,5 +1,7 @@
 package com.loneoaktech.components.coroutine
 
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 
@@ -18,7 +20,9 @@ class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
         // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val appContext = ApplicationProvider.getApplicationContext<Application>()
+        val appContextppContext = InstrumentationRegistry.getInstrumentation().context
         assertEquals("com.loneoaktech.components.coroutine", appContext.packageName)
     }
+
 }

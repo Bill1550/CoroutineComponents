@@ -40,14 +40,18 @@ abstract class  SimplePreferenceWrapper<T> internal constructor(
     fun asFlow(): Flow<T> = callbackFlow {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
             val newValue = prefsWrapper.prefs.getter()
+            println("sending $newValue")
             trySendBlocking( newValue )
         }
 
         // Wrap the sending of the first value in a mutex to prevent
         // flow missing a change that occurs during initialization.
         prefsWrapper.mutationMutex.withLock {
+            val initialValue = prefsWrapper.prefs.getter()
+            println("subscribing, initial value=$initialValue")
+
             // send initial value
-            send( prefsWrapper.prefs.getter() )
+            send( initialValue )
             prefsWrapper.prefs.registerOnSharedPreferenceChangeListener(listener)
         }
 

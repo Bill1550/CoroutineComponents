@@ -1,27 +1,41 @@
+@file:OptIn(ExperimentalStdlibApi::class)
+
 package com.loneoaktech.components.coroutine.preferences
 
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.cash.turbine.test
+import com.loneoaktech.components.coroutine.preferences.shared.SharedPreferencesWrapper
+import com.loneoaktech.components.coroutine.preferences.shared.StringPreferenceWrapper
 import com.loneoaktech.components.coroutine.preferences.simple.SimpleSharedPreferencesWrapper
 import com.loneoaktech.components.coroutine.preferences.simple.SimpleStringPreferenceWrapper
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.coroutines.CoroutineContext
 import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -37,8 +51,23 @@ class SimplePreferenceWrapperTest {
     }
 
     private val appContext: Context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
 
+    @OptIn(DelicateCoroutinesApi::class)
+    private val prefsScope = CoroutineScope(newSingleThreadContext("PrefsContext"))
+    lateinit var testScope: CoroutineScope
+
+    @Before
+    fun initializePrefs() {
+        appContext.deleteSharedPreferences(PREFS_NAME)
+        testScope = CoroutineScope( SupervisorJob() + Dispatchers.Main )
+    }
+
+    @After
+    fun cleanupPrefs()  {
+        appContext.deleteSharedPreferences(PREFS_NAME)
+        testScope.cancel()
+    }
 
     @Test
     fun basicWrapperTest() = runTest(testDispatcher) {
@@ -134,26 +163,47 @@ class SimplePreferenceWrapperTest {
                 assertEquals( value, awaitItem() )
             }
         }
-
-
     }
 
+
     @Test
-    fun sharedFlowVersionTest() = runTest {
+    fun multipleSubscriberTest() = runBlocking(testScope.coroutineContext){ //(testDispatcher) {
 
         val prefsWrapper = SimpleSharedPreferencesWrapper(
             prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE ),
-            dispatcher = Dispatchers.Default //prefs should run on a different thread
+            dispatcher = prefsScope.coroutineContext[CoroutineDispatcher.Key]!!
+
         )
 
         val stringPref = SimpleStringPreferenceWrapper(STRING_PREF_NAME, "default-value", prefsWrapper)
 
-        val prefsScope = backgroundScope + Dispatchers.Default
+        val testData = listOf("one", "two", "three", "four")
 
-        val sf = stringPref.asFlow().shareIn(
-            scope = prefsScope,
-            started = SharingStarted.WhileSubscribed(),
-            replay = 0
-        )
+        // initialize
+        stringPref.set(testData[0])
+        delay(100) // give time for preference to actually set
+
+        // Only read 3 elements, last in test list should be lost
+        val result1Job = async(start = CoroutineStart.UNDISPATCHED) {
+            stringPref.asFlow().take(3).toList()
+        }
+
+        val result2Job = async(start = CoroutineStart.UNDISPATCHED) {
+            stringPref.asFlow().take(3).toList()
+        }
+
+        delay(100) // give second coroutine time to start
+
+        for( i in 1 until testData.size) {
+            stringPref.set(testData[i])
+            delay(100)
+        }
+
+        val result1 = result1Job.await()
+        val result2 = result2Job.await()
+        println("result1=$result1")
+        println("result2=$result2")
+        assertEquals( testData.take(3), result1 )
+        assertEquals( testData.take(3), result2 )
     }
 }

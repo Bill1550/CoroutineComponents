@@ -1,6 +1,7 @@
 package com.loneoaktech.components.coroutine.preferences.shared
 
 import android.content.SharedPreferences
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.edit
 import com.loneoaktech.components.coroutine.preferences.simple.SimplePreferenceWrapper
 import com.loneoaktech.components.coroutine.preferences.simple.SimpleSharedPreferencesWrapper
@@ -24,13 +25,18 @@ abstract class PreferenceWrapper<T> internal constructor(
     private val getter: SharedPreferences.(String)->T,
     private val setter: SharedPreferences.Editor.(String,T)->Unit
 ) {
+    companion object {
+        @VisibleForTesting
+        const val SUBSCRIBER_TIMEOUT = 500L
+    }
+
     suspend fun set(value: T) {
         withContext(prefsWrapper.scope.coroutineContext) {
             prefsWrapper.mutationMutex.withLock {
                 prefsWrapper.prefs.edit(commit = true) {
                     setter(key,value)
                 }
-                println("set to $value")
+                println("sending $value")
             }
         }
     }
@@ -50,7 +56,7 @@ abstract class PreferenceWrapper<T> internal constructor(
         prefsWrapper.mutationMutex.withLock {
             // send initial value
             val curValue = prefsWrapper.prefs.getter(key)
-            println("current value=$curValue")
+            println("subscribing, initial value=$curValue")
             send( curValue )
             prefsWrapper.prefs.registerOnSharedPreferenceChangeListener(listener)
         }
@@ -58,7 +64,7 @@ abstract class PreferenceWrapper<T> internal constructor(
         awaitClose {
             prefsWrapper.prefs.unregisterOnSharedPreferenceChangeListener(listener)
         }
-    }.shareIn(prefsWrapper.scope, SharingStarted.WhileSubscribed())
+    }.shareIn(prefsWrapper.scope, SharingStarted.WhileSubscribed(SUBSCRIBER_TIMEOUT))
 
     fun asFlow(): SharedFlow<T> = sf
 

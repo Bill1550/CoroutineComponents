@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @OptIn(ExperimentalCoroutinesApi::class)
 class AutonomousCacheMapTest {
 
-   data class Stuff( val id: Int, val payload: String )
+    data class Stuff( val id: Int, val payload: String )
 
     private val testDispatcher =  StandardTestDispatcher()
 

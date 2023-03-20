@@ -3,6 +3,7 @@ package com.loneoaktech.components.coroutine.preferences
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -10,9 +11,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.Test
+import org.junit.runner.RunWith
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 
+@RunWith(AndroidJUnit4::class)
 class BasicSharedPreferencesTest {
     companion object {
         private const val PREFS_NAME = "test-preferences"

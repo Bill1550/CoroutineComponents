@@ -17,6 +17,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.newSingleThreadContext
@@ -92,21 +93,14 @@ class PreferenceWrapperTest {
 
         val testData = listOf("one", "two", "three", "four")
 
+        println("Thread: ${Thread.currentThread().name}")
         // initialize
         stringPref.set(testData[0])
         delay(100) // give time for preference to actually set
 
         // Only read 3 elements, last in test list should be lost
-        val resultJob = async(start = CoroutineStart.UNDISPATCHED) {
-            stringPref.asFlow().take(3).toList()
-//            val results = mutableListOf<String>()
-//
-//            stringPref.asFlow().take(3).collect {
-//                println("collected $it")
-//                results.add(it ?: "-null-")
-//            }
-//
-//            results
+        val resultJob = async(start = CoroutineStart.DEFAULT) {
+            stringPref.asFlow().take(3).onEach { println(it) }.toList()
         }
 
         delay(100) // give second coroutine time to start
@@ -141,19 +135,11 @@ class PreferenceWrapperTest {
         delay(100) // give time for preference to actually set
 
 
-        val resultJob = async(start = CoroutineStart.UNDISPATCHED) {
+        val resultJob = async(start = CoroutineStart.ATOMIC, context = Dispatchers.IO) {
             stringPref.asFlow().take(3).toList()
-//            val results = mutableListOf<String>()
-//
-//            stringPref.asFlow().take(3).collect {
-//                println("collected $it")
-//                results.add(it ?: "-null-")
-//            }
-//
-//            results
         }
 
-        delay(100) // give second coroutine time to start
+//        delay(100) // give second coroutine time to start
 
         for( i in 1 until testData.size) {
             stringPref.set(testData[i])
@@ -166,7 +152,7 @@ class PreferenceWrapperTest {
     }
 
     @Test
-    fun turbineTest() = runBlocking(testScope.coroutineContext) { //runTest(testDispatcher){
+    fun turbineTest() = runTest(testDispatcher){
 
         val prefsWrapper = SharedPreferencesWrapper(
             prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE ),

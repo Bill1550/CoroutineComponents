@@ -74,6 +74,20 @@
             </AndroidTestResultsTableState>
           </value>
         </entry>
+        <entry key="-1153770496">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="1A021FDEE003MM" value="120" />
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 6 Pro" value="120" />
+                  <entry key="Tests" value="360" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
         <entry key="-1073647334">
           <value>
             <AndroidTestResultsTableState>
@@ -285,6 +299,20 @@
           </value>
         </entry>
         <entry key="935384530">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="1A021FDEE003MM" value="120" />
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 6 Pro" value="120" />
+                  <entry key="Tests" value="360" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="1355096688">
           <value>
             <AndroidTestResultsTableState>
               <option name="preferredColumnWidths">

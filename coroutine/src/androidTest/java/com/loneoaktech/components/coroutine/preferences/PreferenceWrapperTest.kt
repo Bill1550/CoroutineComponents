@@ -1,6 +1,7 @@
 package com.loneoaktech.components.coroutine.preferences
 
 import android.content.Context
+import androidx.test.core.app.ActivityScenario.launch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.cash.turbine.test
@@ -12,14 +13,23 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -265,9 +275,46 @@ class PreferenceWrapperTest {
             testData.forEach { value ->
                 stringPref.set(value)
                 // On first pass, turbine doesn't call the flow until after the set,
-                // so this loop does not see inital value
+                // so this loop does not see initial value
                 assertEquals( value, awaitItem() )
             }
         }
+
+
+
     }
+
+//    private val msf = MutableStateFlow<String>()
+
+//    val publicMSF: StateFlow<String>
+//        get() = msf
+//
+//    var job: Job? = null
+//    init {
+//        fun CoroutineScope.runScan() =  launch {
+//            while(true ) {
+//                // read something
+//                msf.emit("something")
+//                delay(1000)
+//            }
+//        }
+//
+//        GlobalScope.launch {
+//
+//            msf.subscriptionCount.collect {
+//                if (it > 0 ) {
+//                   if (job == null) {
+//                       job = runScan()
+//                   } else {
+//                       job?.cancelAndJoin()
+//                       job = null
+//                   }
+//                }
+//            }
+//
+//
+//        }
+//
+
+//    }
 }

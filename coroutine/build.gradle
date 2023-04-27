@@ -44,4 +44,5 @@ dependencies {
     androidTestImplementation 'org.jetbrains.kotlin:kotlin-test'
     androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_version"
     androidTestImplementation( "app.cash.turbine:turbine:0.12.1")
+    implementation "org.jetbrains.kotlin:kotlin-script-runtime:1.8.0"
 }

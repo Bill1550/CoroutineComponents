@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "CoroutineComponents"
 include ':app'
 include ':coroutine'
+include ':serialization'

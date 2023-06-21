@@ -10,16 +10,24 @@ import kotlin.system.measureTimeMillis
 class CoroutineBasics {
 
     suspend fun delayPrint( msg: String ) {
-        delay(500)
+        println("delay printing..")
+        delay(3000)
+//        Thread.sleep(3000)
         println(msg)
     }
 
+    suspend fun getMessage(): String {
+        println("getting...")
+        delay(500)
+        return "Hello"
+    }
 
     @Test
     fun `print hello world`() = runBlocking {
 
         measureTimeMillis {
-            delayPrint("hello")
+            val msg = getMessage()
+            delayPrint(msg)
             println("world")
         }.also { println("elapsed time=$it") }
 
@@ -30,10 +38,12 @@ class CoroutineBasics {
 
     @Test
     fun `print hello world interleaved`() = runBlocking {
-
+        println("outer coroutine=${Thread.currentThread().name}")
         measureTimeMillis {
-            launch { delayPrint("world") }
-            println("hello")
+            launch {
+                println("Inner ${Thread.currentThread().name}")
+                delayPrint(getMessage()) }
+            println("hello 1")
         }.also { println("elapsed time=$it") }
 
         Unit

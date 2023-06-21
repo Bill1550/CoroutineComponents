@@ -22,7 +22,7 @@ class SequenceBasics {
     fun `sequence example`()  {
         measureTimeMillis {
             val seq = sequence {
-                repeat(smallReps){
+                repeat(reps){
                     yield(it)
                 }
             }
@@ -68,6 +68,16 @@ class SequenceBasics {
             acc + i
         }
         println("result=$seqResult")
+    }
+
+    @Test
+    fun more() {
+        val lst = listOf(1,2,3,4)
+        val result = lst.asSequence().map {
+            println("computing $it")
+            it * it}.takeWhile { it < 4 }.toList()
+
+        println(result)
     }
 
 }

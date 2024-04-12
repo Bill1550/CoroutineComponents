@@ -115,7 +115,10 @@ class AutonomousCacheMapTest {
             assertEquals("Fetch counter should be 1", 1, fetchCounter.get() )
         }
 
-        delay(10) // ensure j2 starts after j2
+        delay(10) // ensure j2 starts after j1
+
+        // Because the fetcher has a 200 ms delay, J1 should still be in the fetcher delay
+        // and this job should wait for it to finish, thus only one fetch should happen.
 
         launch {
             s1a = stuffCache.get(1)

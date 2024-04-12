@@ -24,6 +24,11 @@ import kotlinx.coroutines.sync.withLock
  * When an entry is fetched the validator is asked to determine freshness.
  * This allows the TTL calculation to be item dependent.
  *
+ * The cache serializes all fetches even for different keys, so only
+ * one fetch is active at a time. However, a caller requesting a value
+ * for a different key doesn't have to wait if the cache contents for
+ * that key exist and are valid.
+ *
  * Type parameters:
  *  K - map key
  *  T - content type

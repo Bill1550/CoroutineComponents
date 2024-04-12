@@ -51,11 +51,14 @@ class AutonomousCacheMapTest {
     private val throwFetchError = AtomicBoolean()
     private val isInSimulatedFetch = AtomicBoolean()
 
+    private val TTL = 500L
+    private val FETCH_TIME = 200L
+
     private suspend fun fetchStuff( key: Int ): Stuff {
         return try {
             withContext( testDispatcher ){
                 isInSimulatedFetch.set(true)
-                delay(200)
+                delay(FETCH_TIME)
                 isInSimulatedFetch.set(false)
                 if ( throwFetchError.getAndSet(false) ) {
                     println("fetcher throwing io exception")
@@ -75,8 +78,8 @@ class AutonomousCacheMapTest {
 
     private val fetchScope = CoroutineScope(SupervisorJob()+testDispatcher)
 
-    private val stuffCache = AutonomousCacheMap(
-            validator = TimeValidator( 500, 10 ){ testDispatcher.scheduler.currentTime },
+    private val stuffCache = AutonomousCacheMap<Int,Stuff,Long>(
+            validator = TimeValidator<Int,Stuff>( TTL, 10 ){ testDispatcher.scheduler.currentTime },
             fetcher = ::fetchStuff,
             fetchingScope = fetchScope
     )
@@ -102,6 +105,16 @@ class AutonomousCacheMapTest {
         val s1a = stuffCache.get(1)
         assertEquals("Cache contents not re-used", 1, fetchCounter.get() )
         assertTrue("Responses were not same object, should have been", s1 === s1a )
+    }
+
+    @Test
+    fun `verify basic TTL`() = runTest {
+        val s1 = stuffCache.get(1)
+        println("stuff 1 = $s1")
+        delay(TTL/2)
+        assertNotNull("should still be valid", stuffCache.getIfInCache(1))
+        delay(TTL/2+1)
+        assertNull("Should not have expired", stuffCache.getIfInCache(1))
     }
 
     @Test
@@ -249,5 +262,33 @@ class AutonomousCacheMapTest {
         assertNotEquals("Cache contents was reused, clear failed", 1, fetchCounter.get() )
         assertEquals("fetch should have been called twice", 2, fetchCounter.get() )
         assertFalse("Responses were same object, should not have been", s1 === s1a )
+    }
+
+    @Test
+    fun `verify get if present`() = runTest {
+
+        // load item into cache
+        val s1 = stuffCache.get(1)
+        println("stuff 1 = $s1")
+        assertEquals(1, stuffCache.getInclusiveSize())
+        // wait for it to expire
+        delay(TTL*2)
+
+        assertNull("Should no longer be valid", stuffCache.getIfInCache(1))
+        assertEquals("cache entrires should have been cleared", 0, stuffCache.getInclusiveSize())
+    }
+
+    @Test
+    fun `verify getSize`() = runTest {
+        val s1 = stuffCache.get(1)
+        println("stuff 1 = $s1")
+        assertEquals("Item should still be in cache", 1, stuffCache.getSize())
+        delay(TTL/2)
+        val s2 = stuffCache.get(2)
+        assertEquals("Both items should still be fresh", 2, stuffCache.getSize())
+        delay(TTL/2+10)
+        assertEquals("One item should be expired and cleared out", 1, stuffCache.getSize())
+        delay(TTL)
+        assertEquals("Both items should have timed out and cache should be clear", 0, stuffCache.getSize())
     }
 }

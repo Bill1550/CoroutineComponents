@@ -5,11 +5,11 @@ package com.loneoaktech.components.coroutine.cache
  *
  *
  */
-open class TimeValidator<T>(
+open class TimeValidator<K,T>(
         private val timeToLive: Long,
         private val errorTimeout: Long,
         private val currentTimeSource: ()->Long = {System.currentTimeMillis()}
-) : CacheValidator<T, Long> {
+) : CacheValidator<K,T, Long> {
 
 //    constructor (
 //        timeToLive: Duration,
@@ -17,18 +17,18 @@ open class TimeValidator<T>(
 //        currentTimeSource: ()->Long = {System.currentTimeMillis()}
 //        ) : this( timeToLive.toLongMilliseconds(), errorTimeout.toLongMilliseconds(), currentTimeSource )
 
-    override fun createContext(entry: T): Long {
+    override fun createContext(key: K, data: T): Long {
         return currentTimeSource()
     }
 
-    override fun createContext(t: Throwable): Long {
+    override fun createContext(key: K, t: Throwable): Long {
         return currentTimeSource()
     }
 
-    override fun isFresh(entry: CacheEntry<T, Long>): Boolean {
+    override fun isFresh(entry: CacheEntry<K,T, Long>): Boolean {
         return when ( entry ) {
-            is CacheEntry.Data<*,*> -> currentTimeSource() - entry.context < timeToLive
-            is CacheEntry.Error<*,*> -> currentTimeSource() - entry.context < errorTimeout
+            is CacheEntry.Data<*,*,*> -> currentTimeSource() - entry.context < timeToLive
+            is CacheEntry.Error<*,*,*> -> currentTimeSource() - entry.context < errorTimeout
         }
     }
 

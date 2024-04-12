@@ -1,16 +1,18 @@
 package com.loneoaktech.components.coroutine.cache
 
-interface CacheValidator<T,C> {
+interface CacheValidator<K, T, C> {
 
-    fun isFresh( entry: CacheEntry<T, C>): Boolean
+    fun isFresh(entry: CacheEntry<K, T, C>): Boolean
 
     /**
      * Creates the data context used to validate a normal entry.
      */
-    fun createContext( entry: T) : C
+    fun createContext(key: K, data: T): C
 
     /**
      * Creates the data context used to validate an error entry.
      */
-    fun createContext( t: Throwable): C
+    fun createContext(key: K, t: Throwable): C
+
+    suspend fun dispose(context: C) {}
 }

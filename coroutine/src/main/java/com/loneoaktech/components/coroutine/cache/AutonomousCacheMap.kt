@@ -1,5 +1,6 @@
 package com.loneoaktech.components.coroutine.cache
 
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -7,6 +8,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * A coroutine based cache that uses a separate CoroutineScope
@@ -41,7 +43,7 @@ class AutonomousCacheMap<in K : Any?, T : Any?, C : Any>(
      * in the cache can still be used.
      * The TimeValidator concrete instance provides simple TTL validation.
      */
-    private val validator: CacheValidator<T, C>,
+    private val validator: CacheValidator<K,T,C>,
 
     private val fetchingScope: CoroutineScope,
 
@@ -49,7 +51,7 @@ class AutonomousCacheMap<in K : Any?, T : Any?, C : Any>(
 
 ) : CacheMap<K, T> {
 
-    private val map = mutableMapOf<K, CacheEntry<T, C>>()
+    private val map = mutableMapOf<K, CacheEntry<K,T, C>>()
     private val mutex = Mutex()
     private var fetchingJob: Job? = null
 
@@ -73,16 +75,16 @@ class AutonomousCacheMap<in K : Any?, T : Any?, C : Any>(
                 it // return what we got
             } ?: let {
                 // now do the fetch
-                map.remove(key) // make sure cache entry is clear (in case it was stale)
+                map.remove(key)?.let {validator.dispose(it.context)} // make sure cache entry is clear (in case it was stale)
 
                 // Go get a new entry, running in a separate coroutine scope
                 fetchingJob = fetchingScope.launch {
                     try {
-                        map[key] = fetcher(key).let { CacheEntry.Data(validator.createContext(it), it) }
+                        map[key] = fetcher(key).let { CacheEntry.Data(validator.createContext(key,it), it) }
                     } catch (ce: CancellationException) {
                         // don't store cancellation exceptions.
                     } catch (t: Throwable) {
-                        map[key] = CacheEntry.Error(validator.createContext(t), t)
+                        map[key] = CacheEntry.Error(validator.createContext(key,t), t)
                     } finally {
                         mutex.unlock() // make sure mutex is always unlocked when we finish I/O
                     }
@@ -103,21 +105,32 @@ class AutonomousCacheMap<in K : Any?, T : Any?, C : Any>(
      * If not, null is returned and a fetch is not executed.
      */
     override suspend fun getIfInCache(key: K): T? {
-        return map[key]?.takeIf { validator.isFresh(it) }?.dispatch()
+        return map[key]?.takeIf { validator.isFresh(it) }?.dispatch() ?: let {
+            mutex.withLock {
+                // clear cache entry, to free up memory, if it didn't suddenly get
+                // renewed.
+                if (map[key]?.takeIf { validator.isFresh(it) } == null) {
+                    map.remove(key)?.let {validator.dispose(it.context)}
+                }
+            }
+            null
+        }
     }
 
     /**
      * Puts an entry into the cache at the specified key.
+     * (side load)
      */
     override suspend fun put(key: K, value: T) {
         return mutex.withLock {
-            map[key] = CacheEntry.Data(validator.createContext(value), value)
+            map.remove(key)?.let {validator.dispose(it.context)}
+            map[key] = CacheEntry.Data(validator.createContext(key,value), value)
         }
     }
 
     override suspend fun remove(key: K ) {
         mutex.withLock {
-            map.remove(key)
+            map.remove(key)?.let {validator.dispose(it.context)}
         }
     }
 
@@ -127,19 +140,48 @@ class AutonomousCacheMap<in K : Any?, T : Any?, C : Any>(
     override suspend fun invalidate() {
         fetchingJob?.cancelAndJoin()
         mutex.withLock {
+            map.forEach { (_, cacheEntry) -> validator.dispose(cacheEntry.context) }
             map.clear()
         }
     }
+
+
 
     /**
      * Dispatches either the cached value or the cached error.
      */
     @Suppress("UNCHECKED_CAST")
-    private fun CacheEntry<T, C>.dispatch(): T {
+    private fun CacheEntry<K,T,C>.dispatch(): T {
         return when (this) {
-            is CacheEntry.Data<*, *> -> data as T
+            is CacheEntry.Data<*,*,*> -> data as T
             is CacheEntry.Error -> throw error
         }
     }
+
+
+    /**
+     * Gets the number of items in the cache, even if they have expired.
+     */
+    @VisibleForTesting
+    fun getInclusiveSize(): Int = map.size
+
+
+    /**
+     * Returns the number of fresh entries in the cache.
+     * This will test every member, and clear any that are expired.
+     * It purges unused memory, but at the cost of O(n)
+     */
+    suspend fun getSize(): Int =
+        mutex.withLock {
+            if (map.isEmpty())
+                return@withLock 0
+            map.keys.toSet().forEach { key ->
+                if (map[key]?.takeIf { validator.isFresh(it) } == null) {
+                    map.remove(key)?.let {validator.dispose(it.context)}
+                }
+            }
+
+            map.size
+        }
 
 }

@@ -3,19 +3,12 @@ package com.loneoaktech.components.coroutine.cache
 /**
  * A basic TTL validator for the ContextCacheMap.
  *
- *
  */
 open class TimeValidator<K,T>(
         private val timeToLive: Long,
         private val errorTimeout: Long,
         private val currentTimeSource: ()->Long = {System.currentTimeMillis()}
 ) : CacheValidator<K,T, Long> {
-
-//    constructor (
-//        timeToLive: Duration,
-//        errorTimeout: Duration,
-//        currentTimeSource: ()->Long = {System.currentTimeMillis()}
-//        ) : this( timeToLive.toLongMilliseconds(), errorTimeout.toLongMilliseconds(), currentTimeSource )
 
     override fun createContext(key: K, data: T): Long {
         return currentTimeSource()

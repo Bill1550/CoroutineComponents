@@ -8,7 +8,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 /**
  * A coroutine based cache that uses a separate CoroutineScope
@@ -122,6 +121,7 @@ class AutonomousCacheMap<in K : Any?, T : Any?, C : Any>(
      * (side load)
      */
     override suspend fun put(key: K, value: T) {
+        fetchingJob?.join() // wait for a fetch to complete, avoid a overwrite race condition, also mutex is locked
         return mutex.withLock {
             map.remove(key)?.let {validator.dispose(it.context)}
             map[key] = CacheEntry.Data(validator.createContext(key,value), value)

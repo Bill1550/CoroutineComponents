@@ -2,8 +2,6 @@ package com.loneoaktech.components.coroutine.cache
 
 /**
  * A basic TTL validator for the ContextCacheMap.
- *
- *
  */
 open class TimeValidator<K,T>(
         private val timeToLive: Long,

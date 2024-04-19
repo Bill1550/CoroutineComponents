@@ -2,7 +2,10 @@ package com.loneoaktech.serialization
 
 object Samples {
 
-  val oneItemOrder = """
+  const val emptyOrder = """Len=346 {"title":"103 - Main Dining Room","state":"open","id":"XZXY6Y2DRQHWM","device":{"id":"3fb3e85c-608f-4d6e-8f64-167337663339"},"currency":"USD","isVat":false,"groupLineItems":true,"testMode":false,"createdTime":1713551033675,"clientCreatedTime":1713551033675,"taxRemoved":false,"manualTransaction":false,"total":0,"employee":{"id":"0KFCCZY3NJAFY"}}
+"""
+
+  const val oneItemOrder = """
 {
   "title": "103 - Main Dining Room",
   "state": "open",
@@ -66,7 +69,7 @@ object Samples {
   }
 }"""
 
-  val threeItemOrder = """
+  const val threeItemOrder = """
 {
   "href": "https://dev1.dev.clover.com/v3/merchants/4G5KV3R6WKGD5/orders/J05ZAK6CSG90P",
   "id": "J05ZAK6CSG90P",

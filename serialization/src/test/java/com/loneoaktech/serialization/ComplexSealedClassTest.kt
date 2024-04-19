@@ -70,7 +70,7 @@ class ComplexSealedClassTest {
         }
     }
 
-    object StateSuffSerializer : PersistableStuffSerializer<PersistableStuff>(
+    object StateStuffSerializer : PersistableStuffSerializer<PersistableStuff>(
         factory = { name, stuff ->
             when(name) {
                 "second" -> States.SecondState( item = stuff.item)

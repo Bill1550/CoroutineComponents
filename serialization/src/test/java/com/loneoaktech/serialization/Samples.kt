@@ -2,6 +2,10 @@ package com.loneoaktech.serialization
 
 object Samples {
 
+  data class Case( val label: String, val data: String)
+
+
+
   const val emptyOrder = """Len=346 {"title":"103 - Main Dining Room","state":"open","id":"XZXY6Y2DRQHWM","device":{"id":"3fb3e85c-608f-4d6e-8f64-167337663339"},"currency":"USD","isVat":false,"groupLineItems":true,"testMode":false,"createdTime":1713551033675,"clientCreatedTime":1713551033675,"taxRemoved":false,"manualTransaction":false,"total":0,"employee":{"id":"0KFCCZY3NJAFY"}}
 """
 
@@ -652,4 +656,11 @@ object Samples {
   "device":{"id":"5d48b9a2-ecc7-4aa2-bcb5-fdd5ffdc1cb4"}
 }     
 """
+
+  val cases = listOf(
+    Case("emptyOrder", emptyOrder),
+    Case("oneItemOrder", oneItemOrder),
+    Case("threeItemOrder", threeItemOrder),
+    Case("bigSample", bigSample),
+  )
 }

@@ -1,5 +1,8 @@
 package com.loneoaktech.components.coroutine
 
+import kotlinx.collections.immutable.mutate
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.plus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
@@ -48,6 +51,15 @@ class RunningFoldTest {
 
     private val testSize = 1000
 
+    private suspend fun kotlinImmutableMapTest(testSize: Int): TimedValue<Map<Id, TestItem>> =
+        measureTimedValue {
+            testSource(testSize)
+                .runningFold(persistentMapOf<Id, TestItem>()) { acc, item ->
+                    acc.plus(item.id to item)
+                }
+                .last()
+        }
+
     private suspend fun immutableMapTest(testSize: Int): TimedValue<Map<Id, TestItem>> =
         measureTimedValue {
             testSource(testSize)
@@ -63,6 +75,14 @@ class RunningFoldTest {
         assertEquals(testSize, result.value.size)
         println("Immutable map Run time = ${result.duration}")
     }
+
+    @Test
+    fun foldKotlinImmutableMapTest() = runTest {
+        val result = kotlinImmutableMapTest(testSize)
+        assertEquals(testSize, result.value.size)
+        println("Immutable map Run time = ${result.duration}")
+    }
+
 
     /**
      * Test using a mutable map as the accumulator.
@@ -107,6 +127,23 @@ class RunningFoldTest {
                 .manualRunningMapReduce { item -> item.id }
                 .last()
         }
+
+    private fun <K, V> Flow<V>.kotlinManualRunningMapReduce(by: (V) -> K): Flow<Map<K, V>> = flow {
+        var workingMap = persistentMapOf<K, V>()
+        this@kotlinManualRunningMapReduce.collect { item ->
+            val key = by(item)
+            workingMap = workingMap.plus (key to item)
+            emit(workingMap)
+        }
+    }
+
+    private suspend fun kotlinManualRunningReduceTest(testSize: Int): TimedValue<Map<Id, TestItem>> =
+        measureTimedValue {
+            testSource(testSize)
+                .kotlinManualRunningMapReduce { item -> item.id }
+                .last()
+        }
+
 
     @Test
     fun manualRunningReduceTest() = runTest {
@@ -154,12 +191,20 @@ class RunningFoldTest {
         println("Mutable map Run time = ${result2.duration}")
         assertEquals(testSize, result2.value.size)
 
-        val result3 = manualRunningReduceTest(testSize)
-        println("Manual Run time = ${result3.duration}")
+        val result3 = kotlinImmutableMapTest(testSize)
         assertEquals(testSize, result3.value.size)
+        println("Kotlin immutable Map run time = ${result3.duration}")
 
-        val result4 = dangerousManualRunningReduceTest(testSize)
-        println("Dangerous manual Run time = ${result4.duration}")
+        val result4 = manualRunningReduceTest(testSize)
+        println("Manual Run time = ${result4.duration}")
         assertEquals(testSize, result4.value.size)
+
+        val result5 = dangerousManualRunningReduceTest(testSize)
+        println("Dangerous manual Run time = ${result5.duration}")
+        assertEquals(testSize, result5.value.size)
+
+        val result6 = kotlinManualRunningReduceTest(testSize)
+        println("Kotlin manual run time = ${result6.duration}")
+        assertEquals(testSize, result6.value.size)
     }
 }
